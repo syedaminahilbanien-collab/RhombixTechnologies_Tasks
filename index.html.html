@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cloud Photo Gallery</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0e0e0e;
+      --surface: #161616;
+      --border: #2a2a2a;
+      --text: #f0ece4;
+      --muted: #888;
+      --accent: #c9a96e;
+      --accent-light: #e8d5b0;
+      --white: #ffffff;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    header {
+      padding: 48px 60px 32px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 42px;
+      font-weight: 300;
+      letter-spacing: -1px;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .logo span {
+      color: var(--accent);
+    }
+
+    .header-meta {
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* Upload bar */
+    .upload-bar {
+      padding: 20px 60px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .upload-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #0e0e0e;
+      border: none;
+      padding: 10px 22px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: background 0.2s;
+    }
+
+    .upload-btn:hover { background: var(--accent-light); }
+
+    .upload-btn svg { width: 15px; height: 15px; }
+
+    #fileInput { display: none; }
+
+    .upload-status {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .upload-status.success { color: #7dbf7d; }
+    .upload-status.error { color: #e07070; }
+
+    /* Stats bar */
+    .stats-bar {
+      padding: 16px 60px;
+      display: flex;
+      gap: 32px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .stat-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 28px;
+      font-weight: 300;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    /* Filter / sort bar */
+    .filter-bar {
+      padding: 16px 60px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .filter-label {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-right: 4px;
+    }
+
+    .filter-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 6px 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.2s;
+      letter-spacing: 0.5px;
+    }
+
+    .filter-btn:hover, .filter-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .view-toggle {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .view-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.2s;
+    }
+
+    .view-btn:hover, .view-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Gallery Grid */
+    .gallery-container {
+      padding: 40px 60px 60px;
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 2px;
+    }
+
+    .gallery-grid.list-view {
+      grid-template-columns: 1fr;
+      gap: 1px;
+    }
+
+    .photo-item {
+      position: relative;
+      overflow: hidden;
+      background: var(--surface);
+      cursor: pointer;
+      animation: fadeIn 0.5s ease forwards;
+      opacity: 0;
+    }
+
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+
+    .photo-item:nth-child(1) { animation-delay: 0.05s; }
+    .photo-item:nth-child(2) { animation-delay: 0.1s; }
+    .photo-item:nth-child(3) { animation-delay: 0.15s; }
+    .photo-item:nth-child(4) { animation-delay: 0.2s; }
+    .photo-item:nth-child(5) { animation-delay: 0.25s; }
+    .photo-item:nth-child(6) { animation-delay: 0.3s; }
+    .photo-item:nth-child(7) { animation-delay: 0.35s; }
+    .photo-item:nth-child(8) { animation-delay: 0.4s; }
+
+    .photo-thumb {
+      width: 100%;
+      aspect-ratio: 4/3;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.5s ease;
+    }
+
+    .gallery-grid.list-view .photo-thumb {
+      aspect-ratio: 16/5;
+    }
+
+    .photo-item:hover .photo-thumb {
+      transform: scale(1.04);
+    }
+
+    .photo-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 50%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 20px;
+    }
+
+    .photo-item:hover .photo-overlay {
+      opacity: 1;
+    }
+
+    .photo-name {
+      font-size: 12px;
+      color: var(--white);
+      font-weight: 400;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .photo-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .action-btn {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      padding: 5px 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: background 0.2s;
+      backdrop-filter: blur(4px);
+    }
+
+    .action-btn:hover { background: rgba(255,255,255,0.3); }
+
+    /* Lightbox */
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.95);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+
+    .lightbox.open { display: flex; }
+
+    .lightbox-img {
+      max-width: 88vw;
+      max-height: 80vh;
+      object-fit: contain;
+      border: 1px solid var(--border);
+    }
+
+    .lightbox-name {
+      margin-top: 20px;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 18px;
+      font-weight: 300;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: 24px;
+      right: 32px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 2px;
+      transition: all 0.2s;
+    }
+
+    .lightbox-close:hover { border-color: var(--accent); color: var(--accent); }
+
+    .lightbox-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      width: 44px;
+      height: 44px;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 2px;
+      transition: all 0.2s;
+    }
+
+    .lightbox-nav:hover { border-color: var(--accent); color: var(--accent); }
+    .lightbox-prev { left: 24px; }
+    .lightbox-next { right: 24px; }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--muted);
+    }
+
+    .empty-state h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 28px;
+      font-weight: 300;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      header, .upload-bar, .stats-bar, .filter-bar, .gallery-container {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+      .logo { font-size: 30px; }
+      .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Cloud<span>Gallery</span></div>
+  <div class="header-meta">AWS S3 &nbsp;·&nbsp; my-photo-gallery-of-2026</div>
+</header>
+
+<div class="upload-bar">
+  <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Upload Photos
+  </button>
+  <input type="file" id="fileInput" multiple accept="image/*" onchange="handleUpload(this)"/>
+  <span class="upload-status" id="uploadStatus">Select images to upload to S3</span>
+</div>
+
+<div class="stats-bar">
+  <div class="stat">
+    <div class="stat-value" id="totalPhotos">8</div>
+    <div class="stat-label">Photos</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" id="totalSize">~20MB</div>
+    <div class="stat-label">Storage Used</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">S3</div>
+    <div class="stat-label">Cloud Storage</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">Free</div>
+    <div class="stat-label">Tier Active</div>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <span class="filter-label">View</span>
+  <button class="filter-btn active" onclick="filterAll(this)">All Photos</button>
+  <button class="filter-btn" onclick="filterRecent(this)">Recent</button>
+
+  <div class="view-toggle">
+    <button class="view-btn active" title="Grid view" onclick="setView('grid', this)">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="0" y="0" width="6" height="6"/><rect x="8" y="0" width="6" height="6"/><rect x="0" y="8" width="6" height="6"/><rect x="8" y="8" width="6" height="6"/></svg>
+    </button>
+    <button class="view-btn" title="List view" onclick="setView('list', this)">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="0" y="0" width="14" height="3"/><rect x="0" y="5.5" width="14" height="3"/><rect x="0" y="11" width="14" height="3"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="gallery-container">
+  <div class="gallery-grid" id="galleryGrid"></div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <button class="lightbox-nav lightbox-prev" onclick="navigate(-1)">&#8592;</button>
+  <img class="lightbox-img" id="lightboxImg" src="" alt=""/>
+  <div class="lightbox-name" id="lightboxName"></div>
+  <button class="lightbox-nav lightbox-next" onclick="navigate(1)">&#8594;</button>
+</div>
+
+<script>
+  const S3_BASE = "https://my-photo-gallery-of-2026.s3.us-east-1.amazonaws.com";
+
+  const images = [
+    "alex-knight-j4uuKnN43_M-unsplash.jpg",
+    "designecologist-Pmh0UoG1vlE-unsplash.jpg",
+    "fabian-irsara-67l-QujB14w-unsplash.jpg",
+    "kari-shea-1SAnrIxw5OY-unsplash.jpg",
+    "lauren-mancke-aOC7TSLb1o8-unsplash.jpg",
+    "nick-morrison-FHnnjk1Yj7Y-unsplash.jpg",
+    "nikita-kachanovsky-OVbeSXRk_9E-unsplash.jpg",
+    "sarah-dorweiler-QeVmJxZOv3k-unsplash.jpg"
+  ];
+
+  let currentIndex = 0;
+  let currentImages = [...images];
+
+  function getDisplayName(filename) {
+    return filename.replace(/-unsplash\.jpg$/, '').replace(/-[a-zA-Z0-9_]+$/, '').replace(/-/g, ' ');
+  }
+
+  function renderGallery(imgs) {
+    const grid = document.getElementById('galleryGrid');
+    grid.innerHTML = '';
+    document.getElementById('totalPhotos').textContent = imgs.length;
+
+    if (imgs.length === 0) {
+      grid.innerHTML = '<div class="empty-state"><h3>No photos found</h3><p>Upload some photos to get started.</p></div>';
+      return;
+    }
+
+    imgs.forEach((filename, index) => {
+      const url = S3_BASE + '/' + filename;
+      const displayName = getDisplayName(filename);
+
+      const item = document.createElement('div');
+      item.className = 'photo-item';
+      item.innerHTML = `
+        <img class="photo-thumb" src="${url}" alt="${displayName}" loading="lazy" onerror="this.style.opacity='0.3'"/>
+        <div class="photo-overlay">
+          <div class="photo-name">${displayName}</div>
+          <div class="photo-actions">
+            <button class="action-btn" onclick="openLightbox(${index}, event)">View</button>
+            <button class="action-btn" onclick="downloadImg('${url}', '${filename}', event)">Download</button>
+          </div>
+        </div>
+      `;
+      item.addEventListener('click', () => openLightbox(index));
+      grid.appendChild(item);
+    });
+  }
+
+  function openLightbox(index, e) {
+    if (e) e.stopPropagation();
+    currentIndex = index;
+    const filename = currentImages[index];
+    document.getElementById('lightboxImg').src = S3_BASE + '/' + filename;
+    document.getElementById('lightboxName').textContent = getDisplayName(filename);
+    document.getElementById('lightbox').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function navigate(dir) {
+    currentIndex = (currentIndex + dir + currentImages.length) % currentImages.length;
+    openLightbox(currentIndex);
+  }
+
+  function downloadImg(url, filename, e) {
+    if (e) e.stopPropagation();
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.target = '_blank';
+    a.click();
+  }
+
+  function setView(type, btn) {
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const grid = document.getElementById('galleryGrid');
+    if (type === 'list') grid.classList.add('list-view');
+    else grid.classList.remove('list-view');
+  }
+
+  function filterAll(btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentImages = [...images];
+    renderGallery(currentImages);
+  }
+
+  function filterRecent(btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentImages = images.slice(0, 4);
+    renderGallery(currentImages);
+  }
+
+  function handleUpload(input) {
+    const files = input.files;
+    if (!files.length) return;
+    const status = document.getElementById('uploadStatus');
+    status.className = 'upload-status';
+    status.textContent = `${files.length} file(s) selected — Upload karne ke liye AWS SDK configure karein`;
+    setTimeout(() => {
+      status.textContent = 'Select images to upload to S3';
+    }, 4000);
+  }
+
+  document.addEventListener('keydown', e => {
+    if (document.getElementById('lightbox').classList.contains('open')) {
+      if (e.key === 'ArrowRight') navigate(1);
+      if (e.key === 'ArrowLeft') navigate(-1);
+      if (e.key === 'Escape') closeLightbox();
+    }
+  });
+
+  document.getElementById('lightbox').addEventListener('click', function(e) {
+    if (e.target === this) closeLightbox();
+  });
+
+  renderGallery(images);
+</script>
+
+</body>
+</html>
